@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Class Team Quiz</title>
+<style>
+  :root {
+    --ink: #151a26;
+    --panel: #1f2638;
+    --text: #f4f6fb;
+    --muted: #a9b2c7;
+    --a: #f0583f;   /* Team A */
+    --b: #2f7bf0;   /* Team B */
+    --good: #2fbf71;
+    --bad: #e5484d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: var(--ink); color: var(--text);
+    font-family: "Trebuchet MS", Verdana, sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 24px 18px 48px; }
+  h1 { font-size: clamp(2rem, 7vw, 3.2rem); margin: 8px 0 6px; }
+  h2 { margin: 28px 0 10px; font-size: 1.2rem; }
+  p.sub { color: var(--muted); margin: 0 0 8px; }
+  .hidden { display: none !important; }
+
+  /* Setup */
+  .topics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .topic {
+    background: var(--panel); color: var(--text); border: 3px solid transparent;
+    padding: 16px 10px; font: inherit; font-size: 1.1rem; cursor: pointer; border-radius: 10px;
+  }
+  .topic.on { border-color: #fff; }
+  .teams { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .team-box { background: var(--panel); border-radius: 10px; padding: 16px; border-top: 8px solid var(--a); }
+  .team-box.b { border-top-color: var(--b); }
+  label { display: block; font-size: .9rem; color: var(--muted); margin: 10px 0 4px; }
+  input[type=text] {
+    width: 100%; padding: 10px; font: inherit; border-radius: 6px;
+    border: 2px solid #3a4560; background: #121724; color: var(--text);
+  }
+  button.main {
+    margin-top: 26px; padding: 14px 28px; font: inherit; font-size: 1.2rem; font-weight: bold;
+    background: #fff; color: var(--ink); border: 0; border-radius: 10px; cursor: pointer;
+  }
+  .error { color: #ffb4b4; margin-top: 10px; min-height: 1.4em; }
+
+  /* Scoreboard */
+  .score { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+  .sc { background: var(--panel); border-radius: 10px; padding: 12px 16px; border-bottom: 8px solid var(--a); opacity: .55; }
+  .sc.b { border-bottom-color: var(--b); }
+  .sc.turn { opacity: 1; outline: 3px solid #fff; }
+  .sc .n { font-size: .95rem; color: var(--muted); }
+  .sc .p { font-size: 2.2rem; font-weight: bold; line-height: 1.1; }
+
+  /* Question */
+  .turn-label { font-size: 1.1rem; margin-bottom: 6px; }
+  .q { font-size: clamp(1.4rem, 5vw, 2rem); margin: 6px 0 20px; }
+  .answers { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .ans {
+    background: var(--panel); color: var(--text); font: inherit; font-size: 1.15rem; text-align: left;
+    padding: 18px 16px; border: 3px solid #3a4560; border-radius: 10px; cursor: pointer;
+  }
+  .ans:hover:not(:disabled) { border-color: #fff; }
+  .ans.right { background: var(--good); border-color: var(--good); color: #06220f; }
+  .ans.wrong { background: var(--bad); border-color: var(--bad); }
+  .ans:disabled { cursor: default; }
+  .msg { font-size: 1.2rem; font-weight: bold; margin-top: 18px; min-height: 1.6em; }
+  .progress { color: var(--muted); font-size: .9rem; margin-top: 10px; }
+
+  /* End */
+  .winner { font-size: clamp(1.8rem, 6vw, 2.8rem); margin: 10px 0; }
+
+  :focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 1. SETUP -->
+  <section id="setup">
+    <h1>Class Team Quiz</h1>
+    <p class="sub">Two teams. One screen. Who knows more?</p>
+
+    <h2>1. Choose a topic</h2>
+    <div class="topics" id="topics"></div>
+
+    <h2>2. Make your teams</h2>
+    <div class="teams">
+      <div class="team-box">
+        <label for="nameA">Team 1 name</label>
+        <input type="text" id="nameA" value="Red Team" maxlength="20">
+      </div>
+      <div class="team-box b">
+        <label for="nameB">Team 2 name</label>
+        <input type="text" id="nameB" value="Blue Team" maxlength="20">
+      </div>
+    </div>
+
+    <button class="main" id="startBtn">Start the game</button>
+    <div class="error" id="setupError" role="alert"></div>
+  </section>
+
+  <!-- 2. GAME -->
+  <section id="game" class="hidden">
+    <div class="score">
+      <div class="sc" id="scA"><div class="n" id="scNameA"></div><div class="p" id="scPtsA">0</div></div>
+      <div class="sc b" id="scB"><div class="n" id="scNameB"></div><div class="p" id="scPtsB">0</div></div>
+    </div>
+    <div class="turn-label" id="turnLabel"></div>
+    <div class="q" id="question"></div>
+    <div class="answers" id="answers"></div>
+    <div class="msg" id="msg" aria-live="polite"></div>
+    <button class="main hidden" id="nextBtn">Next question</button>
+    <div class="progress" id="progress"></div>
+  </section>
+
+  <!-- 3. END -->
+  <section id="end" class="hidden">
+    <h1>Game over!</h1>
+    <div class="winner" id="winner"></div>
+    <div class="score">
+      <div class="sc turn" id="endA"><div class="n" id="endNameA"></div><div class="p" id="endPtsA"></div></div>
+      <div class="sc b turn" id="endB"><div class="n" id="endNameB"></div><div class="p" id="endPtsB"></div></div>
+    </div>
+    <button class="main" id="againBtn">Play again</button>
+  </section>
+
+</div>
+
+<script>
+  const TOPICS = {
+    "Football": [
+      ["How many players does one team have on the field?", ["9", "10", "11", "12"], 2],
+      ["Which country won the 2022 World Cup?", ["Brazil", "Argentina", "France", "Germany"], 1],
+      ["Which card means a player must leave the game?", ["Red", "Yellow", "Green", "Blue"], 0],
+      ["How long is a normal football match (without extra time)?", ["60 minutes", "80 minutes", "90 minutes", "120 minutes"], 2],
+      ["Which country has won the most World Cups?", ["Brazil", "Italy", "Spain", "England"], 0],
+      ["Which part of the body can a normal player NOT use to touch the ball?", ["Head", "Foot", "Knee", "Hand"], 3],
+      ["Which player from Argentina won the 2022 World Cup?", ["Lionel Messi", "Neymar", "Kylian Mbappé", "Luka Modrić"], 0],
+      ["What do we call it when the ball goes into the net?", ["Foul", "Goal", "Corner", "Penalty"], 1]
+    ],
+    "Movies": [
+      ["Which movie has a lion named Simba?", ["Madagascar", "Frozen", "The Lion King", "Shrek"], 2],
+      ["In Toy Story, what is the name of the cowboy?", ["Woody", "Buzz", "Rex", "Slinky"], 0],
+      ["What is the name of the wizard school in Harry Potter?", ["Narnia", "Hogwarts", "Gotham", "Atlantis"], 1],
+      ["Which movie has a snowman named Olaf?", ["Moana", "Cars", "Frozen", "Up"], 2],
+      ["What color is Shrek?", ["Blue", "Green", "Yellow", "Red"], 1],
+      ["What kind of fish is Nemo?", ["Clownfish", "Shark", "Goldfish", "Whale"], 0],
+      ["What is the name of the space ranger toy in Toy Story?", ["Woody", "Hamm", "Buzz Lightyear", "Andy"], 2],
+      ["What are the small yellow helpers in Despicable Me called?", ["Minions", "Smurfs", "Gnomes", "Ducklings"], 0]
+    ],
+    "Space": [
+      ["Which planet is closest to the Sun?", ["Venus", "Mercury", "Earth", "Mars"], 1],
+      ["Which is the biggest planet in our solar system?", ["Saturn", "Earth", "Jupiter", "Neptune"], 2],
+      ["What is at the center of our solar system?", ["The Moon", "The Sun", "Mars", "A black hole"], 1],
+      ["Which planet is called the Red Planet?", ["Mars", "Venus", "Jupiter", "Mercury"], 0],
+      ["What is the name of Earth's natural satellite?", ["Titan", "Sun", "The Moon", "Pluto"], 2],
+      ["Who was the first person to walk on the Moon?", ["Yuri Gagarin", "Neil Armstrong", "Buzz Aldrin", "Elon Musk"], 1],
+      ["How many planets are in our solar system?", ["7", "8", "9", "10"], 1],
+      ["What do we call a huge group of stars like the Milky Way?", ["Galaxy", "Comet", "Planet", "Meteor"], 0]
+    ],
+    "Animals": [
+      ["Which animal is the biggest on land?", ["Hippo", "Giraffe", "Elephant", "Rhino"], 2],
+      ["How many legs does a spider have?", ["6", "8", "10", "4"], 1],
+      ["What is a baby cat called?", ["Puppy", "Cub", "Kitten", "Calf"], 2],
+      ["Which animal is the fastest on land?", ["Cheetah", "Horse", "Lion", "Rabbit"], 0],
+      ["Which bird cannot fly and lives in very cold places?", ["Eagle", "Parrot", "Penguin", "Owl"], 2],
+      ["What do pandas mostly eat?", ["Fish", "Bamboo", "Meat", "Fruit"], 1],
+      ["Which animal is the tallest in the world?", ["Giraffe", "Elephant", "Camel", "Bear"], 0],
+      ["Which sea animal has eight arms?", ["Dolphin", "Crab", "Octopus", "Whale"], 2]
+    ]
+  };
+
+  const POINTS = 10;
+
+  const $ = id => document.getElementById(id);
+  function shuffle(list) {
+    const a = list.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  function show(id) {
+    ["setup", "game", "end"].forEach(s => $(s).classList.toggle("hidden", s !== id));
+    window.scrollTo(0, 0);
+  }
+
+  let topic = null;
+  let questions = [];
+  let current = 0;
+  let teams = [];
+  let locked = false;
+
+  const topicBox = $("topics");
+  Object.keys(TOPICS).forEach(name => {
+    const b = document.createElement("button");
+    b.className = "topic";
+    b.textContent = name;
+    b.onclick = () => {
+      topic = name;
+      document.querySelectorAll(".topic").forEach(t => t.classList.toggle("on", t === b));
+    };
+    topicBox.appendChild(b);
+  });
+
+  $("startBtn").onclick = () => {
+    const nameA = $("nameA").value.trim();
+    const nameB = $("nameB").value.trim();
+    if (!topic) { $("setupError").textContent = "Please choose a topic first."; return; }
+    if (!nameA || !nameB) { $("setupError").textContent = "Both teams need a name."; return; }
+    if (nameA.toLowerCase() === nameB.toLowerCase()) { $("setupError").textContent = "Team names must be different."; return; }
+    $("setupError").textContent = "";
+
+    teams = [
+      { name: nameA, points: 0 },
+      { name: nameB, points: 0 }
+    ];
+    questions = shuffle(TOPICS[topic]);
+    current = 0;
+    $("scNameA").textContent = nameA;
+    $("scNameB").textContent = nameB;
+    show("game");
+    showQuestion();
+  };
+
+  function updateScore() {
+    $("scPtsA").textContent = teams[0].points;
+    $("scPtsB").textContent = teams[1].points;
+  }
+
+  function showQuestion() {
+    locked = false;
+    const t = current % 2;
+    const team = teams[t];
+
+    $("scA").classList.toggle("turn", t === 0);
+    $("scB").classList.toggle("turn", t === 1);
+    updateScore();
+
+    $("turnLabel").textContent = team.name + ", it's your turn!";
+
+    const [text, options, correct] = questions[current];
+    $("question").textContent = text;
+    $("msg").textContent = "";
+    $("nextBtn").classList.add("hidden");
+    $("progress").textContent = "Question " + (current + 1) + " of " + questions.length;
+
+    const box = $("answers");
+    box.innerHTML = "";
+    const order = shuffle(options.map((label, i) => ({ label, ok: i === correct })));
+    order.forEach(opt => {
+      const b = document.createElement("button");
+      b.className = "ans";
+      b.textContent = opt.label;
+      b.dataset.ok = opt.ok ? "1" : "0";
+      b.onclick = () => answer(b, opt.ok, t);
+      box.appendChild(b);
+    });
+  }
+
+  function answer(btn, isRight, t) {
+    if (locked) return;
+    locked = true;
+    const all = document.querySelectorAll(".ans");
+    all.forEach(b => b.disabled = true);
+    const correctText = questions[current][1][questions[current][2]];
+
+    if (isRight) {
+      btn.classList.add("right");
+      teams[t].points += POINTS;
+      $("msg").textContent = "Correct! +" + POINTS + " points for " + teams[t].name + ".";
+    } else {
+      btn.classList.add("wrong");
+      all.forEach(b => { if (b.dataset.ok === "1") b.classList.add("right"); });
+      $("msg").textContent = "Not this time. The right answer is: " + correctText;
+    }
+    updateScore();
+
+    const last = current === questions.length - 1;
+    $("nextBtn").textContent = last ? "See the results" : "Next question";
+    $("nextBtn").classList.remove("hidden");
+    $("nextBtn").focus();
+  }
+
+  $("nextBtn").onclick = () => {
+    if (current === questions.length - 1) { finish(); return; }
+    current++;
+    showQuestion();
+  };
+
+  function finish() {
+    $("endNameA").textContent = teams[0].name;
+    $("endNameB").textContent = teams[1].name;
+    $("endPtsA").textContent = teams[0].points;
+    $("endPtsB").textContent = teams[1].points;
+    if (teams[0].points === teams[1].points) {
+      $("winner").textContent = "It's a draw!";
+    } else {
+      const w = teams[0].points > teams[1].points ? teams[0] : teams[1];
+      $("winner").textContent = w.name + " wins!";
+    }
+    show("end");
+  }
+
+  $("againBtn").onclick = () => {
+    topic = null;
+    document.querySelectorAll(".topic").forEach(t => t.classList.remove("on"));
+    $("setupError").textContent = "";
+    show("setup");
+  };
+</script>
+</body>
+</html>
